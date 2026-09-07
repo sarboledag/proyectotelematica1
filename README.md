@@ -1,57 +1,54 @@
 # Sistema de Monitoreo Distribuido y Control
 
-Proyecto del curso **Internet: Arquitectura y Protocolos (Telemática) — 2026-2**.
+Proyecto del curso Internet: Arquitectura y Protocolos (Telemática), 2026-2.
 
-Sistema distribuido para supervisar de forma remota un conjunto de nodos
-(sensores, equipos de red, dispositivos IoT). Los nodos reportan telemetría
-periódica y eventos críticos a un servidor central; clientes de administración
-consultan el estado de la infraestructura.
+Una organización tiene una infraestructura distribuida de nodos (sensores,
+equipos de red, dispositivos IoT) que hay que supervisar de forma remota. Cada
+nodo reporta su estado de forma periódica y avisa de los eventos críticos que
+ocurren. Un servidor central reúne toda esa información, mantiene el estado de la
+infraestructura y responde las consultas de los clientes de administración.
+
+La comunicación se hace con **DMCP** (*Distributed Monitoring and Control
+Protocol*), un protocolo de capa de aplicación diseñado para el proyecto sobre un
+transporte híbrido: UDP para la telemetría periódica y TCP para el registro, la
+autenticación, los eventos críticos y las consultas.
 
 ## Componentes
 
 | Componente | Lenguaje | Rol |
 |---|---|---|
-| **SCS** – Servidor Central de Supervisión | C (sockets Berkeley) | Recibe telemetría y eventos, mantiene el estado, responde consultas, atiende clientes concurrentes |
-| **Nodo** | Python | Reporta telemetría (UDP) y eventos (TCP) al SCS |
-| **Cliente de Administración** | Python | Autentica, consulta estado instantáneo e histórico, interfaz sencilla |
-| **AUTH** – Servicio de Autenticación | Python | Gestiona usuarios y perfiles, emite tokens de sesión firmados |
+| SCS — Servidor Central de Supervisión | C (sockets Berkeley) | Recibe telemetría y eventos, mantiene el estado, responde consultas y atiende varios clientes a la vez |
+| Nodo | Python | Reporta telemetría por UDP y eventos por TCP |
+| Cliente de Administración | Python | Autentica, consulta el estado instantáneo y el histórico |
+| AUTH — Servicio de Autenticación | Python | Gestiona usuarios y perfiles, emite tokens de sesión firmados |
 
 ## Documentación
 
-Todo el diseño de la Fase 1 vive en la **wiki** (fuente única):
+El diseño completo de la Fase 1 está en la wiki:
 
-**<https://github.com/sarboledag/proyectotelematica1/wiki>**
+**https://github.com/sarboledag/proyectotelematica1/wiki**
 
-- `docs/fase1-diseno.pdf` — versión PDF (snapshot para entrega).
-- Regenerar el PDF desde la wiki: `node scripts/build-pdf.mjs` (ver el script).
-- Editar la wiki: en la web, o `git clone https://github.com/sarboledag/proyectotelematica1.wiki.git`
+En `docs/fase1-diseno.pdf` hay una versión en PDF del mismo contenido. Se
+reconstruye desde la wiki con `node scripts/build-pdf.mjs`.
 
-## Protocolo
-
-**DMCP** (*Distributed Monitoring and Control Protocol*) — protocolo de capa de
-aplicación diseñado para este proyecto.
-
-Transporte: **híbrido TCP + UDP**. UDP para telemetría periódica (tolerante a
-pérdidas); TCP para registro, autenticación, eventos críticos y consultas.
-
-## Estructura del repositorio
+## Estructura
 
 ```
-docs/            fase1-diseno.pdf (snapshot del diseño; la fuente es la wiki)
-scripts/         build-pdf.mjs — genera el PDF desde la wiki
-server/          SCS — servidor central en C  (src/, include/)
-node/            Nodo en Python
-client/          Cliente de administración en Python
-auth/            Servicio de autenticación en Python
-common/          Definiciones compartidas del protocolo (constantes, formato)
-logs/            Archivos de log generados en ejecución (ignorados por git)
+docs/       Versión PDF del diseño
+scripts/    Generación del PDF
+server/     SCS (C)
+node/       Nodo (Python)
+client/     Cliente de administración (Python)
+auth/       Servicio de autenticación (Python)
+common/     Definiciones compartidas del protocolo
+logs/       Logs de ejecución
 ```
 
-## Estado
+## Avance
 
-- [x] **Fase 1 — Diseño y arquitectura** (entrega 9 de septiembre)
-- [ ] Fase 2 — Implementación de comunicación básica (entrega 23 de septiembre)
-- [ ] Fase 3 — Concurrencia, resiliencia y pruebas (entrega 30 de septiembre)
+- [x] Fase 1 — Diseño y arquitectura (9 de septiembre)
+- [ ] Fase 2 — Implementación de la comunicación básica (23 de septiembre)
+- [ ] Fase 3 — Concurrencia, resiliencia y pruebas (30 de septiembre)
 
 ## Equipo
 
