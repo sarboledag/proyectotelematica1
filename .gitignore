@@ -1,0 +1,30 @@
+# Logs generados en ejecución
+logs/*.log
+logs/*.txt
+!logs/.gitkeep
+
+# Build del servidor C
+server/build/
+server/**/*.o
+server/**/*.d
+server/scs
+server/scs.exe
+*.out
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Configuración local con secretos (no versionar)
+*.local.conf
+.env
+secrets/
+
+# Editores / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
