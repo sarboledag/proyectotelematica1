@@ -16,11 +16,16 @@ consultan el estado de la infraestructura.
 | **Cliente de Administración** | Python | Autentica, consulta estado instantáneo e histórico, interfaz sencilla |
 | **AUTH** – Servicio de Autenticación | Python | Gestiona usuarios y perfiles, emite tokens de sesión firmados |
 
+## Documentación
+
+- **Wiki (recomendado):** <https://github.com/sarboledag/proyectotelematica1/wiki> — el diseño de la Fase 1 organizado por páginas.
+- **Documento único:** [`docs/fase1-diseno.md`](docs/fase1-diseno.md) · PDF: [`docs/fase1-diseno.pdf`](docs/fase1-diseno.pdf)
+- La fuente de la wiki vive en [`wiki/`](wiki/); se publica con `bash scripts/sync-wiki.sh`.
+
 ## Protocolo
 
 **DMCP** (*Distributed Monitoring and Control Protocol*) — protocolo de capa de
-aplicación diseñado para este proyecto. Especificación preliminar en
-[`docs/fase1-diseno.md`](docs/fase1-diseno.md).
+aplicación diseñado para este proyecto.
 
 Transporte: **híbrido TCP + UDP**. UDP para telemetría periódica (tolerante a
 pérdidas); TCP para registro, autenticación, eventos críticos y consultas.
