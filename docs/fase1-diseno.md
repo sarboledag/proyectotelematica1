@@ -555,8 +555,7 @@ stateDiagram-v2
     CONECTANDO --> ESPERA_RETRY: conexión rechazada
     REGISTRANDO --> ACTIVO: REGISTER-ACK recibido
     REGISTRANDO --> ESPERA_RETRY: timeout (3 intentos)
-    ACTIVO --> ACTIVO: enviar TELEMETRY (UDP) / HEARTBEAT (TCP)
-    ACTIVO --> ACTIVO: EVENT enviado y EVENT-ACK recibido
+    ACTIVO --> ACTIVO: operación normal (telemetría, heartbeat, eventos)
     ACTIVO --> DEGRADADO: sin HEARTBEAT-ACK / sin EVENT-ACK
     DEGRADADO --> ACTIVO: ACK recuperado
     DEGRADADO --> RECONECTANDO: socket de control caído
@@ -576,8 +575,7 @@ stateDiagram-v2
     CONEXION_ABIERTA --> REGISTRADO: REGISTER válido (Node-Key correcta)
     CONEXION_ABIERTA --> ESCUCHANDO: REGISTER inválido → ERROR 401/409, cerrar
     REGISTRADO --> ACTIVO: primera TELEMETRY o HEARTBEAT
-    ACTIVO --> ACTIVO: telemetría → actualizar estado + histórico
-    ACTIVO --> ACTIVO: EVENT → registrar + EVENT-ACK + notificar suscritos
+    ACTIVO --> ACTIVO: telemetría / evento → actualizar estado, histórico y notificar
     ACTIVO --> SOSPECHOSO: 2× heartbeat_interval sin HEARTBEAT
     SOSPECHOSO --> ACTIVO: HEARTBEAT recibido
     SOSPECHOSO --> DESCONECTADO: 3× heartbeat_interval sin HEARTBEAT / socket cerrado

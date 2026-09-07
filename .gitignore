@@ -11,6 +11,10 @@ server/scs
 server/scs.exe
 *.out
 
+# Artefactos de compilación de PDF
+docs/.pdfbuild/
+node_modules/
+
 # Python
 __pycache__/
 *.py[cod]
