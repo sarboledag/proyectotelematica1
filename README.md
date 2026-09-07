@@ -18,9 +18,13 @@ consultan el estado de la infraestructura.
 
 ## Documentación
 
-- **Wiki (recomendado):** <https://github.com/sarboledag/proyectotelematica1/wiki> — el diseño de la Fase 1 organizado por páginas.
-- **Documento único:** [`docs/fase1-diseno.md`](docs/fase1-diseno.md) · PDF: [`docs/fase1-diseno.pdf`](docs/fase1-diseno.pdf)
-- La fuente de la wiki vive en [`wiki/`](wiki/); se publica con `bash scripts/sync-wiki.sh`.
+Todo el diseño de la Fase 1 vive en la **wiki** (fuente única):
+
+**<https://github.com/sarboledag/proyectotelematica1/wiki>**
+
+- `docs/fase1-diseno.pdf` — versión PDF (snapshot para entrega).
+- Regenerar el PDF desde la wiki: `node scripts/build-pdf.mjs` (ver el script).
+- Editar la wiki: en la web, o `git clone https://github.com/sarboledag/proyectotelematica1.wiki.git`
 
 ## Protocolo
 
@@ -33,10 +37,9 @@ pérdidas); TCP para registro, autenticación, eventos críticos y consultas.
 ## Estructura del repositorio
 
 ```
-docs/            Documentación de diseño y especificación del protocolo
-server/          SCS — servidor central en C
-  src/           Fuentes .c
-  include/       Cabeceras .h
+docs/            fase1-diseno.pdf (snapshot del diseño; la fuente es la wiki)
+scripts/         build-pdf.mjs — genera el PDF desde la wiki
+server/          SCS — servidor central en C  (src/, include/)
 node/            Nodo en Python
 client/          Cliente de administración en Python
 auth/            Servicio de autenticación en Python
