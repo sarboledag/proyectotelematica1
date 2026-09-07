@@ -61,7 +61,21 @@ funcional en esta fase.
 
 ## 2. Arquitectura propuesta
 
-### 2.1 Vista de componentes
+### 2.1 Composición mínima del sistema
+
+Según el requisito 1 del enunciado, la arquitectura mínima consta de:
+
+- **Al menos 2 nodos** que reportan métricas (en las pruebas se ejecutarán
+  ≥ 2 procesos nodo, en máquinas distintas o en la misma con puertos
+  distintos).
+- **Un** Servidor Central de Supervisión (SCS).
+- **Un** Servicio de Autenticación (AUTH).
+- **Uno o varios** clientes de administración.
+
+No hay comunicación directa entre nodos y clientes: los nodos envían
+información al SCS y los clientes la consultan desde el SCS.
+
+### 2.2 Vista de componentes
 
 ```mermaid
 flowchart TB
@@ -102,7 +116,7 @@ flowchart TB
     SCS -. "secreto HMAC compartido<br/>(validación local de tokens)" .- AUTH
 ```
 
-### 2.2 Decisiones de arquitectura
+### 2.3 Decisiones de arquitectura
 
 | # | Decisión | Justificación |
 |---|---|---|
@@ -113,10 +127,10 @@ flowchart TB
 | A5 | **Conexión TCP de control persistente** por nodo | Permite al SCS detectar la caída de un nodo (cierre de socket o expiración de *heartbeat*) y generar el evento "pérdida de conectividad". Sirve además de canal para comandos SCS → nodo (la parte "y control" del proyecto). |
 | A6 | El SCS escucha **TCP y UDP en el mismo número de puerto** (`puerto` recibido por consola) | Simplifica la configuración: un solo parámetro de puerto. Son dos sockets distintos (`SOCK_STREAM` y `SOCK_DGRAM`). |
 | A7 | **Sin direcciones IP embebidas**: toda dirección se obtiene por **nombre de dominio** vía `getaddrinfo` / `getaddrinfo`-equivalente | Requisito del enunciado. Si la resolución falla, se captura la excepción, se registra y se reintenta con *backoff*; el servicio no termina. |
-| A8 | **Concurrencia con hilos** (`pthread`) en el SCS: un hilo por conexión de control de nodo, un hilo por conexión de cliente, un hilo dedicado al bucle de recepción UDP | El enunciado permite hilos para la concurrencia del servidor. Modelo simple de razonar para la Fase 2; en la Fase 3 se evaluará migrar a un *pool* de hilos. |
-| A9 | **Estado en memoria** en el SCS: registro de nodos (tabla hash), *buffers* circulares de histórico por nodo/métrica, lista de eventos. Protegido con `rwlock`. | El histórico requerido es pequeño (≥ 5 muestras por nodo). La persistencia a disco no es un requisito; sí lo es el log de peticiones/respuestas. |
+| A8 | El SCS debe **atender varios nodos y clientes a la vez**. El enunciado permite el uso de **hilos** para ello. El modelo de concurrencia concreto se define e implementa en la Fase 3. | Requisito 3f y 10 del enunciado. En la Fase 1 basta con dejar constancia de que la arquitectura lo contempla. |
+| A9 | **Estado en memoria** en el SCS: registro de nodos, histórico por nodo/métrica (*buffer* de las últimas N muestras) y lista de eventos. | El histórico requerido es pequeño (≥ 5 muestras por nodo). La persistencia a disco no es un requisito; sí lo es el log de peticiones/respuestas. |
 
-### 2.3 Puertos y configuración
+### 2.4 Puertos y configuración
 
 Ningún host se escribe como IP. Cada componente lee un archivo de configuración
 (o parámetros de consola) con **nombres de dominio**:
@@ -618,140 +632,20 @@ stateDiagram-v2
 
 ---
 
-## 8. Diagramas de secuencia (escenarios principales)
+## 8. Alcance y trabajo restante
 
-### 8.1 Alta de un nodo y flujo normal
+Este documento cubre los **ocho puntos requeridos por la Fase 1**. Queda
+explícitamente **fuera del alcance de esta fase**:
 
-```mermaid
-sequenceDiagram
-    participant N as Nodo (Python)
-    participant DNS
-    participant SCS as SCS (C)
-
-    N->>DNS: resolver scs.telematica.local
-    DNS-->>N: dirección
-    N->>SCS: TCP connect (canal de control)
-    N->>SCS: REGISTER (Node-Id, Node-Key, Udp-Port)
-    SCS-->>N: REGISTER-ACK (Session, intervalos, Udp-Endpoint)
-    loop cada telemetry_interval
-        N-)SCS: TELEMETRY (UDP, Seq++)
-    end
-    loop cada heartbeat_interval
-        N->>SCS: HEARTBEAT (TCP)
-        SCS-->>N: HEARTBEAT-ACK
-    end
-    Note over N,SCS: condición crítica detectada en el nodo
-    N->>SCS: EVENT (Flags: ACK_REQ, Severity: critical)
-    SCS-->>N: EVENT-ACK (Event-Id)
-```
-
-### 8.2 Consulta de un cliente con autenticación
-
-```mermaid
-sequenceDiagram
-    participant C as Cliente (Python)
-    participant AUTH as AUTH (Python)
-    participant SCS as SCS (C)
-
-    C->>AUTH: AUTH-LOGIN (user, password)
-    AUTH-->>C: AUTH-TOKEN (token firmado HMAC, Profile, Expires-At)
-    C->>SCS: SESSION (token)
-    Note over SCS: valida la firma localmente con el secreto compartido
-    SCS-->>C: SESSION-ACK (Session, Profile)
-    C->>SCS: QUERY-HISTORY (Node-Id, Metric=temp, Count=5)
-    SCS-->>C: RESPONSE (5 muestras históricas)
-    C->>SCS: QUERY-NODES (Filter: state=active)
-    SCS-->>C: RESPONSE (lista de nodos + estado instantáneo)
-```
-
-### 8.3 Pérdida de conectividad de un nodo
-
-```mermaid
-sequenceDiagram
-    participant N as Nodo
-    participant SCS as SCS
-    participant C as Cliente (suscrito)
-
-    N--xSCS: (el nodo se cae, deja de enviar HEARTBEAT)
-    Note over SCS: 2× heartbeat_interval sin HEARTBEAT → estado SOSPECHOSO
-    Note over SCS: 3× heartbeat_interval sin HEARTBEAT → estado DESCONECTADO
-    SCS->>SCS: generar evento connectivity-loss
-    SCS-)C: UPDATE (Node-Id, estado=DESCONECTADO)
-    N->>SCS: (más tarde) TCP connect + REGISTER (mismo Node-Id)
-    SCS-->>N: REGISTER-ACK
-    SCS-)C: UPDATE (Node-Id, estado=ACTIVO)
-```
-
----
-
-## 9. Concurrencia en el SCS (visión preliminar)
-
-```mermaid
-flowchart LR
-    subgraph SCS["SCS (C, pthreads)"]
-        MAIN["Hilo principal<br/>socket TCP listen + socket UDP<br/>bucle accept()"]
-        UDP["Hilo UDP<br/>recvfrom() en bucle<br/>→ actualizar registro/histórico"]
-        T1["Hilo control nodo 1"]
-        T2["Hilo control nodo 2"]
-        CL1["Hilo cliente 1"]
-        CL2["Hilo cliente 2"]
-        LOG["Logger sincronizado<br/>(consola + archivoDeLogs)"]
-        STATE[("Estado compartido<br/>registry / history / events / sessions<br/>protegido con rwlock")]
-    end
-
-    MAIN --> T1 & T2 & CL1 & CL2
-    UDP --> STATE
-    T1 --> STATE
-    T2 --> STATE
-    CL1 --> STATE
-    CL2 --> STATE
-    T1 --> LOG
-    CL1 --> LOG
-    UDP --> LOG
-```
-
-- **Un hilo por conexión de control de nodo** y **un hilo por conexión de
-  cliente** (modelo *thread-per-connection*, permitido por el enunciado).
-- **Un hilo dedicado** al bucle `recvfrom` del socket UDP de telemetría.
-- **Estado compartido** protegido con `pthread_rwlock` (lecturas de los clientes
-  concurrentes, escrituras de los hilos de nodo y del hilo UDP).
-- **Logger** con `mutex` para intercalar correctamente consola y archivo.
-- Evolución posible (Fase 3): *pool* de hilos + cola de trabajos para acotar el
-  número de hilos ante muchos nodos/clientes.
-
----
-
-## 10. Trazabilidad con los requisitos del enunciado
-
-| Requisito | Dónde se atiende |
-|---|---|
-| 1. Arquitectura mínima (≥ 2 nodos, servidor central, ≥ 1 cliente) | §2.1, §3 |
-| 2. Nodos → servidor, clientes → servidor, sin comunicación directa nodo-cliente | §2.1, §2.2 (A1) |
-| 3a. Registrar nodos | `REGISTER` §4.4, §7.2 |
-| 3b. Recibir estado periódico | `TELEMETRY` §4.4, §6 |
-| 3c. Recibir eventos | `EVENT` §4.4, §5.3 |
-| 3d. Mantener estado de nodos conectados | §3.2, §7.2 |
-| 3e. Responder consultas | `QUERY-*` / `RESPONSE` §4.4 |
-| 3f. Atender múltiples clientes concurrentes | §9 |
-| 4. Sin IP embebidas, resolución por nombre, manejo de fallo sin terminar | §2.2 (A7), §5.5 |
-| 5. Interfaz de cliente con estado instantáneo + ≥ 5 datos históricos | §3.3, `QUERY-HISTORY` §4.6 |
-| 6. Autenticación y perfiles, sin usuarios solo locales en la app principal | §2.2 (A2, A3), §3.4 |
-| 7. Protocolo con registro, estado, evento, confirmación, consulta, respuesta, error | §4.4 (catálogo completo) |
-| 8. Especificación clara (visión general, servicio, encabezado, reglas, ejemplos) | Este documento; se consolida en Fases 2-3 |
-| 9. Integración a TCP/IP vía API de sockets, decisión de transporte | §6 |
-| 10. Múltiples clientes simultáneos, hilos permitidos | §9 |
-| 11. Control de excepciones (conexiones fallidas, formato incorrecto, etc.) | §5.4, §5.5 |
-
----
-
-## 11. Trabajo restante (Fases 2 y 3)
-
-- **Fase 2:** implementar sockets (crear/enlazar/escuchar/aceptar), el
-  intercambio básico `REGISTER` / `TELEMETRY` / `EVENT` / `QUERY-*`, y el parser
-  de DMCP en C y en Python. Consolidar tamaños de campo en la especificación.
-- **Fase 3:** concurrencia completa en el SCS, todos los temporizadores y
-  reintentos, detección de nodos caídos, deduplicación UDP, manejo exhaustivo de
-  mensajes mal formados y parámetros inválidos, y batería de pruebas.
+- **Fase 2 (23 de septiembre):** implementación de los sockets Berkeley
+  (crear / enlazar / escuchar / aceptar), el intercambio básico
+  `REGISTER` / `TELEMETRY` / `EVENT` / `QUERY-*` y el parser de DMCP en C y
+  en Python. Se consolidarán los tamaños de campo de la especificación.
+- **Fase 3 (30 de septiembre):** concurrencia del SCS para atender varios
+  nodos y clientes a la vez (se permite el uso de hilos), todos los
+  temporizadores y reintentos de la sección 5.4, detección de nodos
+  caídos, deduplicación de telemetría UDP, manejo exhaustivo de mensajes
+  mal formados y parámetros inválidos, y batería de pruebas.
 
 ---
 
