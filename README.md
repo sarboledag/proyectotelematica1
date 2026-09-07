@@ -55,4 +55,5 @@ logs/            Archivos de log generados en ejecución (ignorados por git)
 
 ## Equipo
 
-_Completar con los integrantes del grupo._
+- Santiago Arboleda ([@sarboledag](https://github.com/sarboledag))
+- Samuel Orozco
